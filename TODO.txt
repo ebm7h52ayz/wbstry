@@ -1,0 +1,3 @@
+use jquery to load text, images, buttons, fields etc. onto webpage
+use jquery to parse custom script for ease of writing
+generate output html file with all images, text, interactive bits, and code embedded

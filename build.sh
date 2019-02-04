@@ -57,10 +57,24 @@ if [ ! -f "$PROJECT_INIT_FILE" ]; then
 fi
 
 ##build outputfile##
-function deScript { #converts .wbstry script to js/jqry
+
+function base64Encode { # converts an image file into a base64 bit string
+  # $1 relative path to image
+  base64 $1
+}
+
+function convertImages { # converts list of image file locations to standard object list of names and base64 encoded images
+  # $1 array of relative paths and file names of images
+  # loop over array
+  # convert to base64
+  # save as {{"path/filename.jpg", "dhfdkjshfskj="}, {"path/differnt_filename.jpg", "jalsdkjklhfjas="}}
+  :
+}
+
+function deScript { # converts .wbstry script to js/jqry
   # $1 <all wbstry script as a continuous input> "s0.wbstry+s1.wbstry+..."
 
-  # returns decoded scrips as a string of js/jqry to add to output file
+  # returns decoded scrips as a string of js/jqry to add to output file including images
   :
 }
 

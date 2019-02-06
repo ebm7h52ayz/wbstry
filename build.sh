@@ -58,17 +58,37 @@ fi
 
 ##build outputfile##
 
-function base64Encode { # converts an image file into a base64 bit string
-  # $1 relative path to image
-  base64 $1
-}
-
 function convertImages { # converts list of image file locations to standard object list of names and base64 encoded images
   # $1 array of relative paths and file names of images
   # loop over array
   # convert to base64
-  # save as {{"path/filename.jpg", "dhfdkjshfskj="}, {"path/differnt_filename.jpg", "jalsdkjklhfjas="}}
-  :
+  # var images = [{name: "./<PATH_TO_FILENAME/<FILENAME>.png", code: "<BASE64_ENCODED_IMAGE_STRING>"}, {name: "./<PATH_TO_FILENAME/<FILENAME>.png", code: "<BASE64_ENCODED_IMAGE_STRING>"}, ]
+
+  FILE_NAMES=()
+  while read data; do
+    FILE_NAMES+=($data)
+  done
+
+  JS_FILE_OBJECT_STRING='var images = [ '
+
+  COUNT=0
+
+  for i in "${FILE_NAMES[@]}"
+  do
+    COUNT=$(($COUNT+1))
+
+    JS_FILE_OBJECT_STRING="${JS_FILE_OBJECT_STRING}{ image: \"$i\", code: \""$( base64 "$i")"\" }"
+
+    if [[ ${#FILE_NAMES[@]} -gt "$COUNT" ]]; then
+      JS_FILE_OBJECT_STRING="$JS_FILE_OBJECT_STRING, "
+    fi
+  done
+
+
+  JS_FILE_OBJECT_STRING="$JS_FILE_OBJECT_STRING ];"
+
+  echo "$JS_FILE_OBJECT_STRING"
+
 }
 
 function deScript { # converts .wbstry script to js/jqry
@@ -85,6 +105,10 @@ SCRIPT_HEADER=`cat $PROJECT_INIT_FILE`;  #will use deScript function
 
 JQ_HEADER="<script>$JQ_HEADER</script>"
 CSS_HEADER="<style>$CSS_HEADER</style>"
+
+# get all image files and build a JS map of them
+find . -name '*' -exec file {} \; | grep -oP '^(.+)(?=: \w+ image)' | convertImages
+
 SCRIPT_HEADER="<script>$SCRIPT_HEADER</script>"
 
 HEADER="${HEADER}${JQ_HEADER}${CSS_HEADER}${SCRIPT_HEADER}</head>"

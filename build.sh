@@ -77,7 +77,7 @@ function convertImages { # converts list of image file locations to standard obj
   do
     COUNT=$(($COUNT+1))
 
-    JS_FILE_OBJECT_STRING="${JS_FILE_OBJECT_STRING}{ image: \"$i\", code: \""$( base64 "$i")"\" }"
+    JS_FILE_OBJECT_STRING="${JS_FILE_OBJECT_STRING}{ name: \"$i\", code: \""$( base64 -w 0 "$i")"\" }"
 
     if [[ ${#FILE_NAMES[@]} -gt "$COUNT" ]]; then
       JS_FILE_OBJECT_STRING="$JS_FILE_OBJECT_STRING, "
@@ -98,22 +98,52 @@ function deScript { # converts .wbstry script to js/jqry
   :
 }
 
-HEADER='<!DOCTYPE html><html><head>'
+HEADER='<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+'
 JQ_HEADER=`cat $JQ_BP`; #inject jq
+
 CSS_HEADER=`cat $PROJECT_CSS_FILE`; #inject css
+
+IMAGE_OBJECT_HEADER=`find . -name '*' -exec file {} \; | grep -oP '^(.+)(?=: \w+ image)' | convertImages`; # get all image files and build a JS map of them
+
 SCRIPT_HEADER=`cat $PROJECT_INIT_FILE`;  #will use deScript function
 
-JQ_HEADER="<script>$JQ_HEADER</script>"
-CSS_HEADER="<style>$CSS_HEADER</style>"
+JQ_HEADER="
+<script>
+$JQ_HEADER
+</script>
+"
+CSS_HEADER="
+<style>
+$CSS_HEADER
+</style>
+"
 
-# get all image files and build a JS map of them
-find . -name '*' -exec file {} \; | grep -oP '^(.+)(?=: \w+ image)' | convertImages
+IMAGE_OBJECT_HEADER="
+<script>
+$IMAGE_OBJECT_HEADER
+</script>
+"
 
-SCRIPT_HEADER="<script>$SCRIPT_HEADER</script>"
+SCRIPT_HEADER="
+<script>
+$SCRIPT_HEADER
+</script>
+"
 
-HEADER="${HEADER}${JQ_HEADER}${CSS_HEADER}${SCRIPT_HEADER}</head>"
+HEADER="${HEADER}${JQ_HEADER}${CSS_HEADER}${IMAGE_OBJECT_HEADER}${SCRIPT_HEADER}
+</head>
+"
 
 BODY=`cat $PROJECT_BODY_FILE`
-BODY="<body>${BODY}</body></html>"
+BODY="
+<body>
+${BODY}
+</body>
+</html>"
+
 echo "${HEADER}${BODY}"
 exit 0

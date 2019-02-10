@@ -50,7 +50,7 @@ if [ ! -f "$PROJECT_CSS_FILE" ]; then
   exit 1
 fi
 
-PROJECT_INIT_FILE="${PROJECT_DIR}INIT.wbstry"
+PROJECT_INIT_FILE="${PROJECT_DIR}INIT.js"
 if [ ! -f "$PROJECT_INIT_FILE" ]; then
   echo "ERROR: failed to find project init script '$PROJECT_INIT_FILE'."
   exit 1
@@ -101,7 +101,7 @@ function convertImages { # converts list of image file locations to standard obj
             }
             imageIndex++;
             return {
-              value: images[imageIndex-1].name,
+              value: { name: images[imageIndex-1].name, code: images[imageIndex-1].code},
               done: false
             }
           }
@@ -171,7 +171,6 @@ SCRIPT_CONTENT="
 $SCRIPT_CONTENT
 </script>
 "
-
 
 BODY=`cat $PROJECT_BODY_FILE`
 BODY="

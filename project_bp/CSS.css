@@ -3,3 +3,8 @@ html, body {
   height: 100vh;
   margin: 0;
 }
+
+#divCanvas{
+    width: 100vw;
+    height: 100vh;
+}

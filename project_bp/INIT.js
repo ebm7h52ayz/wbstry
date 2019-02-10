@@ -11,8 +11,9 @@ function draw() { // accept a js object of images and locations? { images: { nam
   // auto resize canvas ?
   var c = document.getElementById("primeCanvas");
   var ctx = c.getContext("2d");
-  ctx.canvas.width  = window.innerWidth;
-  ctx.canvas.height = window.innerHeight;
+  // keep canvas sized to window
+  ctx.canvas.width  = window.innerWidth -10;
+  ctx.canvas.height = window.innerHeight -10;
   var img = document.createElement('img');
   img.src = 'data:image/jpeg;base64,' + getImageBLOB("./project_bp/scn0/test.png");
   ctx.drawImage(img, 10, 10);

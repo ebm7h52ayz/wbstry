@@ -50,7 +50,7 @@ if [ ! -f "$PROJECT_CSS_FILE" ]; then
   exit 1
 fi
 
-PROJECT_INIT_FILE="${PROJECT_DIR}INIT.wbstry"
+PROJECT_INIT_FILE="${PROJECT_DIR}INIT.js"
 if [ ! -f "$PROJECT_INIT_FILE" ]; then
   echo "ERROR: failed to find project init script '$PROJECT_INIT_FILE'."
   exit 1
@@ -62,14 +62,13 @@ function convertImages { # converts list of image file locations to standard obj
   # $1 array of relative paths and file names of images
   # loop over array
   # convert to base64
-  # var images = [{name: "./<PATH_TO_FILENAME/<FILENAME>.png", code: "<BASE64_ENCODED_IMAGE_STRING>"}, {name: "./<PATH_TO_FILENAME/<FILENAME>.png", code: "<BASE64_ENCODED_IMAGE_STRING>"}, ]
 
   FILE_NAMES=()
   while read data; do
     FILE_NAMES+=($data)
   done
 
-  JS_FILE_OBJECT_STRING='var images = [ '
+  JS_FILE_OBJECT_STRING='const imageContainer = { allImages: ['
 
   COUNT=0
 
@@ -77,15 +76,44 @@ function convertImages { # converts list of image file locations to standard obj
   do
     COUNT=$(($COUNT+1))
 
-    JS_FILE_OBJECT_STRING="${JS_FILE_OBJECT_STRING}{ image: \"$i\", code: \""$( base64 "$i")"\" }"
+    IMAGE_SIZE=$( file "$i" | grep -oP '(?<=,)(\s*\d+\s*x\s*\d+\s*)(?=,)')
+    IMAGE_X=`expr "$IMAGE_SIZE" : '^[[:space:]]*\(.[0-9]*\)[[:space:]]*[x]'`
+    IMAGE_Y=`expr "$IMAGE_SIZE" : '.*x[[:space:]]*\(..[0-9]*.\)[[:space:]]*.*'`
+
+    JS_FILE_OBJECT_STRING="${JS_FILE_OBJECT_STRING}{ name: '$i', code: '"$( base64 -w 0 "$i")"', x: '"$IMAGE_X"', y: '"$IMAGE_Y"' }"
 
     if [[ ${#FILE_NAMES[@]} -gt "$COUNT" ]]; then
       JS_FILE_OBJECT_STRING="$JS_FILE_OBJECT_STRING, "
     fi
+
+    if [[ ${#FILE_NAMES[@]} -eq "$COUNT" ]]; then
+      JS_FILE_OBJECT_STRING="$JS_FILE_OBJECT_STRING
+    ],
+      [Symbol.iterator]() {
+          const images = Object.values(this.allImages)
+          let imageIndex = 0;
+
+          return {
+          next() {
+            const endOfImages = !(imageIndex < images.length);
+            if (endOfImages) {
+              return {
+                value: undefined,
+                done: true
+              };
+            }
+            imageIndex++;
+            return {
+              value: { name: images[imageIndex-1].name, code: images[imageIndex-1].code, x: images[imageIndex-1].x, y: images[imageIndex-1].y },
+              done: false
+            }
+          }
+          };
+        }"
+    fi
   done
 
-
-  JS_FILE_OBJECT_STRING="$JS_FILE_OBJECT_STRING ];"
+  JS_FILE_OBJECT_STRING="$JS_FILE_OBJECT_STRING };"
 
   echo "$JS_FILE_OBJECT_STRING"
 
@@ -98,22 +126,64 @@ function deScript { # converts .wbstry script to js/jqry
   :
 }
 
-HEADER='<!DOCTYPE html><html><head>'
+HEADER='<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+'
 JQ_HEADER=`cat $JQ_BP`; #inject jq
+
 CSS_HEADER=`cat $PROJECT_CSS_FILE`; #inject css
-SCRIPT_HEADER=`cat $PROJECT_INIT_FILE`;  #will use deScript function
 
-JQ_HEADER="<script>$JQ_HEADER</script>"
-CSS_HEADER="<style>$CSS_HEADER</style>"
+IMAGE_OBJECT_HEADER=`find . -name '*' -exec file {} \; | grep -oP '^(.+)(?=: \w+ image)' | convertImages`; # get all image files and build a map of them
 
-# get all image files and build a JS map of them
-find . -name '*' -exec file {} \; | grep -oP '^(.+)(?=: \w+ image)' | convertImages
+SCRIPT_HEADER=`cat $PROJECT_INIT_FILE`; #js/jqry boilerpalte will use deScript function
 
-SCRIPT_HEADER="<script>$SCRIPT_HEADER</script>"
+SCRIPT_CONTENT=`cat ./project_bp/scn0/scn0.js` #user gen'd script for pages, maybe load from object like images? will use deScript function
 
-HEADER="${HEADER}${JQ_HEADER}${CSS_HEADER}${SCRIPT_HEADER}</head>"
+##format output html tags##
+
+JQ_HEADER="
+<script>
+$JQ_HEADER
+</script>
+"
+CSS_HEADER="
+<style>
+$CSS_HEADER
+</style>
+"
+
+IMAGE_OBJECT_HEADER="
+<script>
+$IMAGE_OBJECT_HEADER
+</script>
+"
+
+SCRIPT_HEADER="
+<script>
+$SCRIPT_HEADER
+</script>
+"
+
+HEADER="${HEADER}${JQ_HEADER}${CSS_HEADER}${IMAGE_OBJECT_HEADER}${SCRIPT_HEADER}
+</head>
+"
+
+SCRIPT_CONTENT="
+<script>
+$SCRIPT_CONTENT
+</script>
+"
 
 BODY=`cat $PROJECT_BODY_FILE`
-BODY="<body>${BODY}</body></html>"
+BODY="
+<body>
+${BODY}
+$SCRIPT_CONTENT
+</body>
+</html>"
+
+##outup final html##
 echo "${HEADER}${BODY}"
 exit 0

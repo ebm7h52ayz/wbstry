@@ -62,7 +62,6 @@ function convertImages { # converts list of image file locations to standard obj
   # $1 array of relative paths and file names of images
   # loop over array
   # convert to base64
-  # var images = [{name: "./<PATH_TO_FILENAME/<FILENAME>.png", code: "<BASE64_ENCODED_IMAGE_STRING>"}, {name: "./<PATH_TO_FILENAME/<FILENAME>.png", code: "<BASE64_ENCODED_IMAGE_STRING>"}, ]
 
   FILE_NAMES=()
   while read data; do
@@ -77,7 +76,11 @@ function convertImages { # converts list of image file locations to standard obj
   do
     COUNT=$(($COUNT+1))
 
-    JS_FILE_OBJECT_STRING="${JS_FILE_OBJECT_STRING}{ name: '$i', code: '"$( base64 -w 0 "$i")"' }"
+    IMAGE_SIZE=$( file "$i" | grep -oP '(?<=,)(\s*\d+\s*x\s*\d+\s*)(?=,)')
+    IMAGE_X=`expr "$IMAGE_SIZE" : '^[[:space:]]*\(.[0-9]*\)[[:space:]]*[x]'`
+    IMAGE_Y=`expr "$IMAGE_SIZE" : '.*x[[:space:]]*\(..[0-9]*.\)[[:space:]]*.*'`
+
+    JS_FILE_OBJECT_STRING="${JS_FILE_OBJECT_STRING}{ name: '$i', code: '"$( base64 -w 0 "$i")"', x: '"$IMAGE_X"', y: '"$IMAGE_Y"' }"
 
     if [[ ${#FILE_NAMES[@]} -gt "$COUNT" ]]; then
       JS_FILE_OBJECT_STRING="$JS_FILE_OBJECT_STRING, "
@@ -101,7 +104,7 @@ function convertImages { # converts list of image file locations to standard obj
             }
             imageIndex++;
             return {
-              value: { name: images[imageIndex-1].name, code: images[imageIndex-1].code},
+              value: { name: images[imageIndex-1].name, code: images[imageIndex-1].code, x: images[imageIndex-1].x, y: images[imageIndex-1].y },
               done: false
             }
           }
@@ -109,7 +112,6 @@ function convertImages { # converts list of image file locations to standard obj
         }"
     fi
   done
-
 
   JS_FILE_OBJECT_STRING="$JS_FILE_OBJECT_STRING };"
 
@@ -133,11 +135,13 @@ JQ_HEADER=`cat $JQ_BP`; #inject jq
 
 CSS_HEADER=`cat $PROJECT_CSS_FILE`; #inject css
 
-IMAGE_OBJECT_HEADER=`find . -name '*' -exec file {} \; | grep -oP '^(.+)(?=: \w+ image)' | convertImages`; # get all image files and build a JS map of them
+IMAGE_OBJECT_HEADER=`find . -name '*' -exec file {} \; | grep -oP '^(.+)(?=: \w+ image)' | convertImages`; # get all image files and build a map of them
 
 SCRIPT_HEADER=`cat $PROJECT_INIT_FILE`; #js/jqry boilerpalte will use deScript function
 
 SCRIPT_CONTENT=`cat ./project_bp/scn0/scn0.js` #user gen'd script for pages, maybe load from object like images? will use deScript function
+
+##format output html tags##
 
 JQ_HEADER="
 <script>
@@ -180,5 +184,6 @@ $SCRIPT_CONTENT
 </body>
 </html>"
 
+##outup final html##
 echo "${HEADER}${BODY}"
 exit 0

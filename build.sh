@@ -69,7 +69,7 @@ function convertImages { # converts list of image file locations to standard obj
     FILE_NAMES+=($data)
   done
 
-  JS_FILE_OBJECT_STRING='var images = [ '
+  JS_FILE_OBJECT_STRING='const imageContainer = { allImages: ['
 
   COUNT=0
 
@@ -77,15 +77,41 @@ function convertImages { # converts list of image file locations to standard obj
   do
     COUNT=$(($COUNT+1))
 
-    JS_FILE_OBJECT_STRING="${JS_FILE_OBJECT_STRING}{ name: \"$i\", code: \""$( base64 -w 0 "$i")"\" }"
+    JS_FILE_OBJECT_STRING="${JS_FILE_OBJECT_STRING}{ name: '$i', code: '"$( base64 -w 0 "$i")"' }"
 
     if [[ ${#FILE_NAMES[@]} -gt "$COUNT" ]]; then
       JS_FILE_OBJECT_STRING="$JS_FILE_OBJECT_STRING, "
     fi
+
+    if [[ ${#FILE_NAMES[@]} -eq "$COUNT" ]]; then
+      JS_FILE_OBJECT_STRING="$JS_FILE_OBJECT_STRING
+    ],
+      [Symbol.iterator]() {
+          const images = Object.values(this.allImages)
+          let imageIndex = 0;
+
+          return {
+          next() {
+            const endOfImages = !(imageIndex < images.length);
+            if (endOfImages) {
+              return {
+                value: undefined,
+                done: true
+              };
+            }
+            imageIndex++;
+            return {
+              value: images[imageIndex-1].name,
+              done: false
+            }
+          }
+          };
+        }"
+    fi
   done
 
 
-  JS_FILE_OBJECT_STRING="$JS_FILE_OBJECT_STRING ];"
+  JS_FILE_OBJECT_STRING="$JS_FILE_OBJECT_STRING };"
 
   echo "$JS_FILE_OBJECT_STRING"
 
@@ -109,7 +135,9 @@ CSS_HEADER=`cat $PROJECT_CSS_FILE`; #inject css
 
 IMAGE_OBJECT_HEADER=`find . -name '*' -exec file {} \; | grep -oP '^(.+)(?=: \w+ image)' | convertImages`; # get all image files and build a JS map of them
 
-SCRIPT_HEADER=`cat $PROJECT_INIT_FILE`;  #will use deScript function
+SCRIPT_HEADER=`cat $PROJECT_INIT_FILE`; #js/jqry boilerpalte will use deScript function
+
+SCRIPT_CONTENT=`cat ./project_bp/scn0/scn0.js` #user gen'd script for pages, maybe load from object like images? will use deScript function
 
 JQ_HEADER="
 <script>
@@ -138,10 +166,18 @@ HEADER="${HEADER}${JQ_HEADER}${CSS_HEADER}${IMAGE_OBJECT_HEADER}${SCRIPT_HEADER}
 </head>
 "
 
+SCRIPT_CONTENT="
+<script>
+$SCRIPT_CONTENT
+</script>
+"
+
+
 BODY=`cat $PROJECT_BODY_FILE`
 BODY="
 <body>
 ${BODY}
+$SCRIPT_CONTENT
 </body>
 </html>"
 
